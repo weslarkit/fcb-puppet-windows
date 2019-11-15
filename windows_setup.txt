@@ -1,0 +1,57 @@
+# Puppet agent download
+# https://downloads.puppetlabs.com/windows/puppet5/
+
+Set-ExecutionPolicy Bypass -Scope Process -Force; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+$env:ChocolateyInstall = Convert-Path "$((Get-Command choco).path)\..\.."
+Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+refreshenv
+choco install -y git
+choco install -y vscode
+
+$parentdir="larktemp"
+$file="puppet-agent-5.5.16-x64.msi"
+$url="http://downloads.puppetlabs.com/windows/puppet5/$file"
+New-Item -Path "c:\" -Name "$parentdir" -ItemType "directory"
+Set-Location "c:\${parentdir}"
+
+$wc = New-Object net.webclient
+$wc.Downloadfile("${url}", "c:\${parentdir}\${file}")
+$wc = New-Object net.webclient
+$install_file="C:\${parentdir}\${file}"
+Start-Process msiexec.exe -Wait -ArgumentList "/I ${install_file} /quiet"
+sleep 30
+refreshenv
+
+cd "C:\ProgramData\PuppetLabs\code\modules"
+git clone https://github.com/puppetlabs/puppetlabs-dsc.git
+git clone https://github.com/puppetlabs/puppetlabs-reboot.git
+git clone https://github.com/fcb-puppet-windows/windows.git
+puppet module install puppetlabs-powershell --version 2.3.0
+git clone https://github.com/puppetlabs/ruby-pwsh.git
+cd "C:\ProgramData\PuppetLabs\code\modules\windows\manifests"
+
+$file="vmware.zip"
+$url="https://s3.amazonaws.com/weslson.com/$file"
+$wc = New-Object net.webclient
+$wc.Downloadfile("${url}", "c:\${parentdir}\${file}")
+$wc = New-Object net.webclient
+Expand-Archive -Path "C:\${parentdir}\${file}" -DestinationPath C:\${parentdir}	-Force
+mkdir "c:\${parentdir}\scripts"
+$command="echo $Env:path"
+echo $command > "c:\${parentdir}\scripts\InfoSec64.cmd"
+echo $command > "c:\${parentdir}\pcw-set.cmd"
+
+puppet apply .\test.pp
+
+
+
+
+
+#vssadmin add ShadowStorage /For=C: /On=C: /MaxSize=1G
+#mkdir c:\Install\scripts
+#echo "Hello" > c:\Install\scripts\InfoSec64.cmd
+#msiexec /qn /norestart /i $file
+#msiexec.exe /qn /norestart /i "C:/${parentdir}/${file}" /l*v install.txt
+#Start-Process msiexec.exe -Wait -ArgumentList '/I C:\larktemp\puppet-agent-5.5.16-x64.msi /quiet'
+# c:\Temp\VM-Tools\setup64.exe /S /v"/qn REBOOT=R"
+# Move-Item -Path "C:\${parentdir}\VMWare Tools" -Destination "C:\Temp\VM-Tools" -Force
